@@ -1,40 +1,41 @@
 #include <msp430.h> 
 #include <stdint.h>
 
-uint16_t lfsr = 0xACE1u;
+unsigned long long lfsr = 0xACE1ACE1ACE1ACE1ULL;  // 64-bit seed
+uint16_t brownoutFlag = 0;
 
+void detectBitFlips(unsigned long long actual_value) {
+    static unsigned long long expected_lfsr = 0xACE1ACE1ACE1ACE1ULL;
+    unsigned long long expected_bit = ((expected_lfsr >> 0) ^
+                                       (expected_lfsr >> 1) ^
+                                       (expected_lfsr >> 3) ^
+                                       (expected_lfsr >> 4)) & 1;
+    unsigned long long new_expected = (expected_lfsr >> 1) | (expected_bit << 63);
 
-void detectBitFlips(uint16_t actual_value) {
-    static uint16_t expected_lfsr = 0xACE1u;
-    uint16_t expected_bit = ((expected_lfsr >> 0) ^
-                             (expected_lfsr >> 2) ^
-                             (expected_lfsr >> 3) ^
-                             (expected_lfsr >> 5)) & 1;
-    uint16_t new_expected = (expected_lfsr >> 1) | (expected_bit << 15);
-
-    if (actual_value != new_expected) {
-        P1OUT |= BIT1;
+    if (new_expected != actual_value) {  // Compare full 64-bit values
+        P1OUT |= BIT1; // Indicate an error
     }
 
-    /*else {
-        P1OUT &= ~BIT1;
-    }
-*/
     expected_lfsr = new_expected;
 }
+
+void resetCheck(){
+    if (SYSRSTIV == 0x02) { // Check for brownout reset
+        P1OUT |= BIT4; // Indicate brownout event
+    } else {
+        P1OUT |= BIT5; // Non-brownout reset
+    }
+}
+
 
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD;   // Stop Watchdog Timer
 
+    UCSCTL5 = DIVM_5;
+
     // ACLK Setup
     P1DIR |= BIT0;
     P1SEL |= BIT0;
-
-    // SMCLK Setup
-    /*P1DIR |= BIT1;
-    P1SEL |= BIT1;
-    TA0CTL = MC_2 | ID_0 | TASSEL_2 | TACLR;
-    TA0CCTL0 |= OUTMOD_4;*/
 
     // Heartbeat Setup
     P1DIR |= BIT2;
@@ -44,15 +45,16 @@ int main(void) {
     P1DIR |= BIT1;
     P1OUT &= ~BIT1;
 
-
     P1OUT |= BIT2;
     while (1) {
-        // Update the actual LFSR value using the taps: bits 0, 2, 3, and 5.
-        P1OUT ^= BIT2;
-        uint16_t bit = ((lfsr >> 0) ^ (lfsr >> 2) ^ (lfsr >> 3) ^ (lfsr >> 5)) & 1;
-        lfsr = (lfsr >> 1) | (bit << 15);
+        P1OUT ^= BIT2;  // Toggle heartbeat LED
 
-        // Call the error detection function with the new LFSR value.
+        unsigned long long bit = ((lfsr >> 0) ^
+                                  (lfsr >> 1) ^
+                                  (lfsr >> 3) ^
+                                  (lfsr >> 4)) & 1;
+        lfsr = (lfsr >> 1) | (bit << 63);  // Shift full 64-bit range
+
         detectBitFlips(lfsr);
 
         P1OUT ^= BIT2;
