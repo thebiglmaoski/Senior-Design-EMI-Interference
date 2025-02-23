@@ -48,6 +48,7 @@ but currently, brownout will be 3 rapid blinks and other errors will be 1 long b
 */
 void blinkPattern(){
     switch (errorFlag) {
+        // brownout should be 3 quick blinks
         case 1: 
             for (int i = 0; i < 2; ++i) {
                 P1OUT |= BIT2; // connect to pin 16 of subject
@@ -56,7 +57,7 @@ void blinkPattern(){
                 __delay_cycles(100000);
             }
             break;
-
+        // other errors will be 1 long blink
         case 2:
             P1OUT |= BIT2;
             __delay_cycles(600000);
@@ -76,7 +77,7 @@ int main(void) {
 
     UCSCTL5 = DIVM_5;
 
-    // Bitflip LED Setup
+    // Bitflip LED Setup (connect to pin 14 of subject)
     P1DIR |= BIT0;
     P1OUT &= ~BIT0;
 
