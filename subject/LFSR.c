@@ -50,7 +50,7 @@ void blinkingLEDPattern(){
     switch (errorFlag) {
         case 1: 
             for (int i = 0; i < 3; ++i) {
-                P1OUT |= BIT2;
+                P1OUT |= BIT2; // connect to pin 16 of subject
                 __delay_cycles(100000);
                 P1OUT &= ~BIT2;
                 __delay_cycles(100000);
@@ -80,11 +80,11 @@ int main(void) {
     P1DIR |= BIT0;
     P1OUT &= ~BIT0;
 
-    // Heartbeat Setup
+    // Heartbeat Setup (connect to pin 15 of subject)
     P1DIR |= BIT1;
     P1OUT &= ~BIT1;
 
-    // Error LED Setup
+    // Error LED Setup (connect to pin 16 of subject)
     P1DIR |= BIT2;
     P1OUT &= ~BIT2;
 
