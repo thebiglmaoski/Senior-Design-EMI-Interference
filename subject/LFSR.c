@@ -49,7 +49,7 @@ but currently, brownout will be 3 rapid blinks and other errors will be 1 long b
 void blinkPattern(){
     switch (errorFlag) {
         case 1: 
-            for (int i = 0; i < 3; ++i) {
+            for (int i = 0; i < 2; ++i) {
                 P1OUT |= BIT2; // connect to pin 16 of subject
                 __delay_cycles(100000);
                 P1OUT &= ~BIT2;
