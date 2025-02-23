@@ -1,0 +1,11 @@
+id,voltage,result
+0,201.48,No Fault
+1,201.48,Critical Error
+2,201.48,Bit Flip Detected
+3,201.48,Bit Flip Detected
+4,201.48,No Fault
+5,201.48,No Fault
+6,201.48,Bit Flip Detected
+7,201.48,Bit Flip Detected
+8,201.48,No Fault
+9,201.48,Bit Flip Detected
