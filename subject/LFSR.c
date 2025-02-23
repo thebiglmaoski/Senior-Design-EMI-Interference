@@ -46,7 +46,7 @@ void resetCheck(){
 but currently, brownout will be 3 rapid blinks and other errors will be 1 long blink.
 
 */
-void blinkingLEDPattern(){
+void blinkPattern(){
     switch (errorFlag) {
         case 1: 
             for (int i = 0; i < 3; ++i) {
@@ -100,7 +100,7 @@ int main(void) {
         lfsr = (lfsr >> 1) | (bit << 63);  // Shift full 64-bit range
 
         detectBitFlips(lfsr);
-        blinkingLEDPattern();
+        blinkPattern();
         P1OUT ^= BIT1;
     }
 }
