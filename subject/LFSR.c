@@ -5,10 +5,33 @@
 
 #define allocatedSize 8
 
+// starting and ending address of each RAM Sector (see page 45 of the MSP430F5308 datasheet for table), will fix function in a bit
+
+//sector 0 of RAM
+#define startAddress0 0x002BFF
+#define endAddress0 0x002400
+
+//sector 1 of RAM
+#define startAddress1 0x0033FF 
+#define endAddress1 0x002C00
+
+//sector 7 of RAM
+#define startAddress7 0x0023FF 
+#define endAddress7 0x001C00
+
+
 
 unsigned long long lfsr = 0xACE1ACE1ACE1ACE1ULL;  // 64-bit seed
 uint16_t errorFlag = 0; //made the flag more general, will be useful in blinkPattern() function
 
+
+
+void zeroOutRAM(uint32_t startAddress, uint32_t endAddress){
+        
+    for (uint32_t *address = startAddress; address <= endAddress; ++address){
+            *address = 0;
+    }
+}
 
 /* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc(). 
 While iterating through the memory buffer, if theres a non-zero memory space then a bitflip has occured
