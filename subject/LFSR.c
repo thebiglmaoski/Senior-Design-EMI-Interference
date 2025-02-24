@@ -28,7 +28,7 @@ void memoryAllocation(){
         }
     }
 
-    free(allocatedMemory);
+    free(memoryBuffer);
 }
 
     
@@ -138,5 +138,7 @@ int main(void) {
         
         
         P1OUT ^= BIT1;
+
+        
     }
 }
