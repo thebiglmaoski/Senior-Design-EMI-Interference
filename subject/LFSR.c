@@ -40,6 +40,22 @@ void zeroOutRAM(uint32_t startAddress, uint32_t endAddress){
    }
 }
 
+//after zeroing out the RAM sectors, this function will check each memory space to see if theres a non-zero value. if so, a bitflip occured
+void checkRAM(uint32_t startAddress, uint32_t endAddress){
+   
+   uint32_t *start = (uint32_t*) startAddress;
+   uint32_t *end = (uint32_t*) endAddress;
+
+
+   while (start >= end) {
+        if (*start != 0) {
+           P1OUT |= BIT0;
+        }
+
+         start -= 1;   
+   }
+}
+
 /* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc().
 While iterating through the memory buffer, if theres a non-zero memory space then a bitflip has occured
 and the bitflip LED will light up (Idea was inspired by the reference github in #software).
@@ -172,11 +188,15 @@ int main(void) {
                                   (lfsr >> 4)) & 1;
         lfsr = (lfsr >> 1) | (bit << 63);  // Shift full 64-bit range
 
-        detectBitFlips(lfsr);
+       checkRAM(startAddress1, endAddress1);
+       checkRAM(startAddress0, endAddress0);
+       checkRAM(startAddress7, endAddress7);
+        
+       detectBitFlips(lfsr);
 
-        memoryAllocation();
+       memoryAllocation();
 
-        blinkPattern();
+       blinkPattern();
 
 
         P1OUT ^= BIT1;
