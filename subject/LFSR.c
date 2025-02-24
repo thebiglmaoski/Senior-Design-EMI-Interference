@@ -1,8 +1,38 @@
 #include <msp430.h> 
 #include <stdint.h>
+#include <stdlib.h> 
+#include <stdio.h>
+
+#define allocatedSize 8
+
 
 unsigned long long lfsr = 0xACE1ACE1ACE1ACE1ULL;  // 64-bit seed
 uint16_t errorFlag = 0; //made the flag more general, will be useful in blinkPattern() function
+
+
+/* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc(). 
+While iterating through the memory buffer, if theres a non-zero memory space then a bitflip has occured
+and the bitflip LED will light up (Idea was inspired by the reference github in #software). 
+*/
+
+void memoryAllocation(){
+    unsigned char* memoryBuffer = (unsigned char*) calloc(allocatedSize, sizeof(unsigned char));
+    
+    if (memoryBuffer == NULL) {
+        return;
+    }
+
+    for (int i = 0; i < allocatedSize; ++i){
+        if (memoryBuffer[i] != 0) {
+            P1OUT |= BIT0;
+        }
+    }
+
+    free(allocatedMemory);
+}
+
+    
+        
 
 void detectBitFlips(unsigned long long actual_value) {
     static unsigned long long expected_lfsr = 0xACE1ACE1ACE1ACE1ULL;
@@ -101,7 +131,12 @@ int main(void) {
         lfsr = (lfsr >> 1) | (bit << 63);  // Shift full 64-bit range
 
         detectBitFlips(lfsr);
+
+        memoryAllocation();
+        
         blinkPattern();
+        
+        
         P1OUT ^= BIT1;
     }
 }
