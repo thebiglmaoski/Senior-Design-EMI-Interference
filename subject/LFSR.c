@@ -5,15 +5,15 @@
 
 #define allocatedSize 8
 
-// starting and ending address of each RAM Sector (see page 45 of the MSP430F5308 datasheet for table), will fix function in a bit
-
-//sector 0 of RAM
-#define startAddress0 0x002BFF
-#define endAddress0 0x002400
+// starting and ending address of each RAM Sector (see page 45 of the MSP430F5308 datasheet for table)
 
 //sector 1 of RAM
 #define startAddress1 0x0033FF 
 #define endAddress1 0x002C00
+
+//sector 0 of RAM
+#define startAddress0 0x002BFF
+#define endAddress0 0x002400
 
 //sector 7 of RAM
 #define startAddress7 0x0023FF 
@@ -25,12 +25,19 @@ unsigned long long lfsr = 0xACE1ACE1ACE1ACE1ULL;  // 64-bit seed
 uint16_t errorFlag = 0; //made the flag more general, will be useful in blinkPattern() function
 
 
-
+/* this function will iterate through each RAM sector's address, setting each memory location to 0.
+If there's a more efficient way of zeroing out RAM, feel free to modify this function
+*/
 void zeroOutRAM(uint32_t startAddress, uint32_t endAddress){
         
-    for (uint32_t *address = startAddress; address <= endAddress; ++address){
-            *address = 0;
-    }
+   uint32_t *start = (uint32_t*) startAddress;
+   uint32_t *end = (uint32_t*) endAddress;
+
+
+   while (start >= end) {
+        *start = 0;
+        start -= 1;
+   }
 }
 
 /* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc(). 
@@ -142,6 +149,11 @@ int main(void) {
     P1DIR |= BIT2;
     P1OUT &= ~BIT2;
 
+    // initializing RAM sectors 1, 0, and 7 to be 0
+    zeroOutRAM(startAddress1, endAddress1);
+    zeroOutRAM(startAddress0, endAddress0);
+    zeroOutRAM(startAddress7, endAddress7);
+        
     // This will let us check the reason for reset before proceeding with the program
     resetCheck();
     while (1) {
