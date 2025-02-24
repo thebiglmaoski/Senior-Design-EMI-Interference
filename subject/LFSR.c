@@ -1,6 +1,6 @@
 #include <msp430.h> 
 #include <stdint.h>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <stdio.h>
 
 #define allocatedSize 8
@@ -8,7 +8,7 @@
 // starting and ending address of each RAM Sector (see page 45 of the MSP430F5308 datasheet for table)
 
 //sector 1 of RAM
-#define startAddress1 0x0033FF 
+#define startAddress1 0x0033FF
 #define endAddress1 0x002C00
 
 //sector 0 of RAM
@@ -16,7 +16,7 @@
 #define endAddress0 0x002400
 
 //sector 7 of RAM
-#define startAddress7 0x0023FF 
+#define startAddress7 0x0023FF
 #define endAddress7 0x001C00
 
 
@@ -29,7 +29,7 @@ uint16_t errorFlag = 0; //made the flag more general, will be useful in blinkPat
 If there's a more efficient way of zeroing out RAM, feel free to modify this function
 */
 void zeroOutRAM(uint32_t startAddress, uint32_t endAddress){
-        
+
    uint32_t *start = (uint32_t*) startAddress;
    uint32_t *end = (uint32_t*) endAddress;
 
@@ -40,19 +40,23 @@ void zeroOutRAM(uint32_t startAddress, uint32_t endAddress){
    }
 }
 
-/* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc(). 
+/* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc().
 While iterating through the memory buffer, if theres a non-zero memory space then a bitflip has occured
-and the bitflip LED will light up (Idea was inspired by the reference github in #software). 
+and the bitflip LED will light up (Idea was inspired by the reference github in #software).
 */
 
 void memoryAllocation(){
+
     unsigned char* memoryBuffer = (unsigned char*) calloc(allocatedSize, sizeof(unsigned char));
-    
+    int i = 0;
+
     if (memoryBuffer == NULL) {
         return;
     }
 
-    for (int i = 0; i < allocatedSize; ++i){
+
+
+    for (i = 0; i < allocatedSize; ++i){
         if (memoryBuffer[i] != 0) {
             P1OUT |= BIT0;
         }
@@ -61,8 +65,8 @@ void memoryAllocation(){
     free(memoryBuffer);
 }
 
-    
-        
+
+
 
 void detectBitFlips(unsigned long long actual_value) {
     static unsigned long long expected_lfsr = 0xACE1ACE1ACE1ACE1ULL;
@@ -84,19 +88,19 @@ and errorFlag will be set to a value corresponding to the reset cause (i.e 1 for
 If needed, we can expand resetCheck() to check for other specific events besides brownout
 */
 void resetCheck(){
-    
+
     /*this accounts for the edge case where the register value is 0x00 (no reset), we want the errorFlag to be 0 here.
     otherwise, it would fall under the else condition and set errorFlag to 2.
     */
-    
+
     if (SYSRSTIV == 0x00) {
         errorFlag = 0;
     }
-    
+
    else if (SYSRSTIV == 0x02) { // Check for brownout reset
         errorFlag = 1; // Set errorFlag to 1 to indicate a brownout error
-    } 
-    
+    }
+
     else {
         errorFlag = 2; // Set errorFlag to 2 to indicate other errors
     }
@@ -107,10 +111,13 @@ but currently, brownout will be 3 rapid blinks and other errors will be 1 long b
 
 */
 void blinkPattern(){
+
+    int i = 0;
+
     switch (errorFlag) {
         // brownout should be 3 quick blinks
-        case 1: 
-            for (int i = 0; i < 2; ++i) {
+        case 1:
+            for (i = 0; i < 2; ++i) {
                 P1OUT |= BIT2; // connect to pin 16 of subject
                 __delay_cycles(100000);
                 P1OUT &= ~BIT2;
@@ -130,8 +137,8 @@ void blinkPattern(){
             break;
     }
 }
-            
-    
+
+
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD;   // Stop Watchdog Timer
 
@@ -153,7 +160,7 @@ int main(void) {
     zeroOutRAM(startAddress1, endAddress1);
     zeroOutRAM(startAddress0, endAddress0);
     zeroOutRAM(startAddress7, endAddress7);
-        
+
     // This will let us check the reason for reset before proceeding with the program
     resetCheck();
     while (1) {
@@ -168,12 +175,12 @@ int main(void) {
         detectBitFlips(lfsr);
 
         memoryAllocation();
-        
+
         blinkPattern();
-        
-        
+
+
         P1OUT ^= BIT1;
 
-        
+
     }
 }
