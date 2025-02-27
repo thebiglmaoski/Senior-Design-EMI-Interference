@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #define allocatedSize 8
 
@@ -42,7 +43,7 @@ void checkRAM(uint16_t* startAddress, uint16_t* endAddress){
 
     while (startAddress <= (uint16_t*) endAddress) {
         if (*startAddress != 0) {
-           P1OUT |= BIT0;
+           P1OUT |= BIT1;
         }
 
          startAddress += 1;
@@ -67,7 +68,7 @@ void memoryAllocation(){
 
     for (i = 0; i < allocatedSize; ++i){
         if (memoryBuffer[i] != 0) {
-            P1OUT |= BIT0;
+            P1OUT |= BIT1;
         }
     }
 
@@ -86,7 +87,7 @@ void detectBitFlips(unsigned long long actual_value) {
     unsigned long long new_expected = (expected_lfsr >> 1) | (expected_bit << 63);
 
     if (new_expected != actual_value) {  // Compare full 64-bit values
-        P1OUT |= BIT0; // Indicate an error (connect to pin 14 of the subject)
+        P1OUT |= BIT1; // Indicate an error (connect to pin 14 of the subject)
     }
 
     expected_lfsr = new_expected;
@@ -127,22 +128,22 @@ void blinkPattern(){
         // brownout should be 3 quick blinks
         case 1:
             for (i = 0; i < 2; ++i) {
-                P1OUT |= BIT2; // connect to pin 16 of subject
+                P1OUT |= BIT0; // connect to pin 16 of subject
                 __delay_cycles(100000);
-                P1OUT &= ~BIT2;
+                P1OUT &= ~BIT0;
                 __delay_cycles(100000);
             }
             break;
         // other errors will be 1 long blink
         case 2:
-            P1OUT |= BIT2;
+            P1OUT |= BIT0;
             __delay_cycles(600000);
-            P1OUT &= ~BIT2;
+            P1OUT &= ~BIT0;
             __delay_cycles(600000);
             break;
 
         default:
-            P1OUT &= ~BIT2;
+            P1OUT &= ~BIT0;
             break;
     }
 }
@@ -150,7 +151,7 @@ void blinkPattern(){
 
 void checkStackIntegrity() {
     if (*(volatile uint32_t*)STACK_CANARY_ADDR != 0xDEADBEEF) { //check if the address is kept the same
-        P1OUT |= BIT0;  // Stack corruption detected, flash led
+        P1OUT |= BIT1;  // Stack corruption detected, flash led
     }
 }
 
@@ -170,7 +171,7 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
   void checkFlashIntegrity() {
       static uint32_t expected_crc = 0x12345678;  // Precomputed CRC value
       if (computeCRC((uint32_t*) 0xFFFF, (uint32_t*) 0xC000) != expected_crc) {
-          P1OUT |= BIT0;  // Instruction memory corruption detected
+          P1OUT |= BIT1;  // Instruction memory corruption detected
       }
   }
  //end CRC section
@@ -180,47 +181,42 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
  The saveRegisters function uses inline assembly to store specific CPU registers into the saved_registers structure.
  The checkRegisters function then compares the current register values with the previously saved ones using memcmp.
  */
-typedef struct {
-    uint16_t SR;  // Status Register
-    uint16_t R4;
-    uint16_t R5;
-    uint16_t R6;
-    uint16_t R7;
-    uint16_t R8;
-    uint16_t R9;
-    uint16_t R10;
-    uint16_t R11;
-} CPU_Registers;
+  typedef struct {
+      uint16_t SR;
+      uint16_t R4;
+      uint16_t R5;
+      uint16_t R6;
+      uint16_t R7;
+      uint16_t R8;
+      uint16_t R9;
+      uint16_t R10;
+      uint16_t R11;
+  } CPU_Registers;
 
-volatile CPU_Registers saved_registers;
+  volatile CPU_Registers saved_registers;
 
-void saveRegisters() {
-    __asm__ volatile (
-        "MOV R4, %0\n\t"
-        "MOV R5, %1\n\t"
-        "MOV R6, %2\n\t"
-        "MOV R7, %3\n\t"
-        "MOV R8, %4\n\t"
-        "MOV R9, %5\n\t"
-        "MOV R10, %6\n\t"
-        "MOV R11, %7\n\t"
-        : "=m" (saved_registers.R4), "=m" (saved_registers.R5),
-          "=m" (saved_registers.R6), "=m" (saved_registers.R7),
-          "=m" (saved_registers.R8), "=m" (saved_registers.R9),
-          "=m" (saved_registers.R10), "=m" (saved_registers.R11)
-    );
+  void saveRegisters() {
+      saved_registers.SR = __get_SR_register();  // Save Status Register
 
-    saved_registers.SR = __get_SR_register();  // Save Status Register
-}
+      saved_registers.R4 = 0;  // Placeholder
+      saved_registers.R5 = 0;  // Placeholder
+      saved_registers.R6 = 0;  // Placeholder
+      saved_registers.R7 = 0;  // Placeholder
+      saved_registers.R8 = 0;  // Placeholder
+      saved_registers.R9 = 0;  // Placeholder
+      saved_registers.R10 = 0; // Placeholder
+      saved_registers.R11 = 0; // Placeholder
+  }
 
-void checkRegisters() {
-    CPU_Registers current_registers;
-    saveRegisters();  // Save current state before comparison
+  void checkRegisters() {
+      CPU_Registers current_registers;
+      saveRegisters();  // Store the current state before comparison
 
-    if (memcmp(&current_registers, &saved_registers, sizeof(CPU_Registers)) != 0) {
-        P1OUT |= BIT0;  // Indicate corruption in register values
-    }
-}
+      if (memcmp((const void*)&current_registers, (const void*)&saved_registers, sizeof(CPU_Registers)) != 0) {
+          P1OUT |= BIT1;  // Indicate corruption
+      }
+  }
+
 //end register check section
 
 
@@ -230,31 +226,32 @@ void checkRegisters() {
 
       UCSCTL5 = DIVM_5;
 
-      // Bitflip LED Setup (connect to pin 14 of subject)
-      P1DIR |= BIT0;
-      P1OUT &= ~BIT0;
-
-      // Heartbeat Setup (connect to pin 15 of subject)
+      // Bitflip LED Setup (connect to pin 15 of subject)
       P1DIR |= BIT1;
       P1OUT &= ~BIT1;
 
-      // Error LED Setup (connect to pin 16 of subject)
+      // Heartbeat Setup (connect to pin 16 of subject)
       P1DIR |= BIT2;
       P1OUT &= ~BIT2;
 
+      // Error LED Setup (connect to pin 14 of subject)
+      P1DIR |= BIT0;
+      P1OUT &= ~BIT0;
+
 
       // Initialize RAM sectors 0, 1, and 7 to be 0
-      zeroOutRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
-      zeroOutRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
-      zeroOutRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
+     // zeroOutRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
+      //zeroOutRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
+      //zeroOutRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
 
-      stack_canary = 0xDEADBEEF;
+      *(volatile uint32_t*)STACK_CANARY_ADDR = 0xDEADBEEF;
 
       // Check reset cause before proceeding
       resetCheck();
 
+      P1OUT |= BIT2;
       while (1) {
-          P1OUT ^= BIT1;  // Toggle heartbeat LED
+          P1OUT ^= BIT2;  // Toggle heartbeat LED
 
           // Update LFSR for bit-flip detection
           unsigned long long bit = ((lfsr >> 0) ^
@@ -264,20 +261,23 @@ void checkRegisters() {
           lfsr = (lfsr >> 1) | (bit << 63);  // Shift full 64-bit range
 
           // Perform integrity checks
-          checkRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
-          checkRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
-          checkRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
+
+
+        // checkRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
+         //checkRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
+
+
+         // checkRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
 
           detectBitFlips(lfsr);
           memoryAllocation();
 
-          checkStackIntegrity();  // Check for stack corruption
-          checkFlashIntegrity();  // Check flash memory integrity
-          checkRegisters();       // Check CPU register integrity
+          //checkStackIntegrity();  // Check for stack corruption
+          //checkFlashIntegrity();  // Check flash memory integrity
+        // checkRegisters();       // Check CPU register integrity
 
-          blinkPattern();  // Handle any detected errors with LED patterns
-
-          __delay_cycles(500000);  // Small delay between iterations
+       //  blinkPattern();  // Handle any detected errors with LED patterns
+          P1OUT ^= BIT2;
+         // __delay_cycles(500000);  // Small delay between iterations
       }
   }
-
