@@ -57,7 +57,7 @@ void checkRAM(uint16_t* startAddress, uint16_t* endAddress){
    }
 }
 
-/* This function allocates 4 bytes (16 bits) of memory where each space is initialized to 0 via calloc().
+/* This function allocates 2 bytes (16 bits) of memory where each space is initialized to 0 via calloc().
 While iterating through the memory buffer, if theres a non-zero memory space then a bitflip has occured
 and the bitflip LED will light up (Idea was inspired by the reference github in #software).
 */
