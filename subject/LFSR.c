@@ -4,13 +4,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define allocatedSize 8
+#define allocatedSize 2
 
 // starting and ending address of each RAM Sector (see page 45 of the MSP430F5308 datasheet for table)
 
 //sector 0 of RAM (datsheet says 0x002BFF to 0x002400, but we'll access memory from 0x002400 to 0x002BFF)
 #define startAddress0 0x002400
-#define endAddress0 0x002BFF
+#define endAddress0  0x002BFF
 
 //sector 1 of RAM (datasheet says 0x0033FF to 0x002C00, but we'll access memory from 0x002C00 to 0x0033FF)
 #define startAddress1 0x002C00
@@ -32,7 +32,7 @@ If there's a more efficient way of zeroing out RAM, feel free to modify this fun
 */
 void zeroOutRAM(uint16_t* startAddress, uint16_t* endAddress){
 
-    while (startAddress <= (uint16_t*) endAddress) {
+    while (startAddress <= endAddress) {
         *startAddress = 0;
         startAddress += 1;
    }
@@ -41,16 +41,23 @@ void zeroOutRAM(uint16_t* startAddress, uint16_t* endAddress){
 //after zeroing out the RAM sectors, this function will check each memory space to see if theres a non-zero value. if so, a bitflip occured
 void checkRAM(uint16_t* startAddress, uint16_t* endAddress){
 
-    while (startAddress <= (uint16_t*) endAddress) {
+    // P1OUT &= ~BIT1;
+    while (startAddress <= endAddress) {
         if (*startAddress != 0) {
            P1OUT |= BIT1;
         }
 
+
+
          startAddress += 1;
+
+
+
+
    }
 }
 
-/* This function allocates 8 bytes (64 bits) of memory where each space is initialized to 0 via calloc().
+/* This function allocates 4 bytes (16 bits) of memory where each space is initialized to 0 via calloc().
 While iterating through the memory buffer, if theres a non-zero memory space then a bitflip has occured
 and the bitflip LED will light up (Idea was inspired by the reference github in #software).
 */
@@ -240,11 +247,11 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
 
 
       // Initialize RAM sectors 0, 1, and 7 to be 0
-     // zeroOutRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
-      //zeroOutRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
+     //zeroOutRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
+     // zeroOutRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
       //zeroOutRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
 
-      *(volatile uint32_t*)STACK_CANARY_ADDR = 0xDEADBEEF;
+     // *(volatile uint32_t*)STACK_CANARY_ADDR = 0xDEADBEEF;
 
       // Check reset cause before proceeding
       resetCheck();
@@ -254,23 +261,25 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
           P1OUT ^= BIT2;  // Toggle heartbeat LED
 
           // Update LFSR for bit-flip detection
-          unsigned long long bit = ((lfsr >> 0) ^
+        /* unsigned long long bit = ((lfsr >> 0) ^
                                     (lfsr >> 1) ^
                                     (lfsr >> 3) ^
                                     (lfsr >> 4)) & 1;
           lfsr = (lfsr >> 1) | (bit << 63);  // Shift full 64-bit range
+          */
 
           // Perform integrity checks
 
 
-        // checkRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
-         //checkRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
+
+       // checkRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
+        //checkRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
 
 
-         // checkRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
+       //checkRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
 
-          detectBitFlips(lfsr);
-          memoryAllocation();
+        //  detectBitFlips(lfsr);
+         memoryAllocation();
 
           //checkStackIntegrity();  // Check for stack corruption
           //checkFlashIntegrity();  // Check flash memory integrity
