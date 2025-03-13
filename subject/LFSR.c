@@ -24,7 +24,7 @@
 #define STACK_CANARY_ADDR  0x001C00 //variable initialized at the top of the stack, which is the highest valid ram address
 unsigned long long lfsr = 0xACE1ACE1ACE1ACE1ULL;  // 64-bit seed
 uint16_t errorFlag = 0; //made the flag more general, will be useful in blinkPattern() function
-
+uint16_t bitflipFound = 0; //will be used in checkRAM() and memoryAllocation() as these functions maintained heartbeat
 
 
 /* this function will iterate through each RAM sector's address, setting each memory location to 0.
@@ -32,29 +32,40 @@ If there's a more efficient way of zeroing out RAM, feel free to modify this fun
 */
 void zeroOutRAM(uint16_t* startAddress, uint16_t* endAddress){
 
+    // this checks if we're writing to an invalid address (might of been why zeroOutRAM wasn't behaving as expected during testing)
+    if ((uint16_t)startAddress < 0x001C00 || (uint16_t)endAddress > 0x0033FF || startAddress > endAddress || !startAddress || !endAddress) {
+        return;
+    }
+
+    __disable_interrupt();
+    
     while (startAddress <= endAddress) {
-        *startAddress = 0;
+        *startAddress = 0x0000;
         startAddress += 1;
    }
+
+    __enable_interrupt();
+    
 }
 
 //after zeroing out the RAM sectors, this function will check each memory space to see if theres a non-zero value. if so, a bitflip occured
 void checkRAM(uint16_t* startAddress, uint16_t* endAddress){
 
-    // P1OUT &= ~BIT1;
+    bitflipFound = 0;
+    // this checks if we're reading an invalid address
+   if ((uint16_t)startAddress < 0x001C00 || (uint16_t)endAddress > 0x0033FF || startAddress > endAddress || !startAddress || !endAddress) {
+        return;
+    }
+    
     while (startAddress <= endAddress) {
         if (*startAddress != 0) {
-           P1OUT |= BIT1;
+           bitflipFound = 1;
         }
-
-
-
          startAddress += 1;
-
-
-
-
    }
+
+    if (!(P1OUT & BIT1) && bitflipFound){
+        P1OUT |= BIT1;
 }
 
 /* This function allocates 2 bytes (16 bits) of memory where each space is initialized to 0 via calloc().
@@ -66,7 +77,7 @@ void memoryAllocation(){
 
     unsigned char* memoryBuffer = (unsigned char*) calloc(allocatedSize, sizeof(unsigned char));
     int i = 0;
-
+ 
     if (memoryBuffer == NULL) {
         return;
     }
@@ -75,10 +86,13 @@ void memoryAllocation(){
 
     for (i = 0; i < allocatedSize; ++i){
         if (memoryBuffer[i] != 0) {
-            P1OUT |= BIT1;
+            bitflipFound = 1;
         }
     }
 
+    if (!(P1OUT & BIT1) && bitflipFound){
+        P1OUT |= BIT1;
+}
     free(memoryBuffer);
 }
 
@@ -231,7 +245,9 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
   int main(void) {
       WDTCTL = WDTPW | WDTHOLD;   // Stop Watchdog Timer
 
-      UCSCTL5 = DIVM_5;
+// UCSCTL5 register lets us manage the dividers of ACLK, SMCLK, and MCLK (see page 180 of the MSP430x5xx and MSP430x6xx family user guide). 
+// DIVM_3 divides MCLK ( ~8 MHz) by 8, making MCLK now ~1MHz 
+      UCSCTL5 = DIVM_3; 
 
       // Bitflip LED Setup (connect to pin 15 of subject)
       P1DIR |= BIT1;
@@ -272,14 +288,30 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
 
 
 
-       // checkRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
-        //checkRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
-
-
-       //checkRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
-
+        checkRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
+        // after checking sector 0 of RAM, the bitflip flag resets to 0 for next RAM check
+        if (bitflipFound == 1){
+            bitflipFound = 0;
+        }
+          
+        checkRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
+          // after checking sector 1 of RAM, the bitflip flag resets to 0 for next RAM check
+        if (bitflipFound == 1){
+            bitflipFound = 0;
+        }
+          
+        checkRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
+          // after checking sector 7 of RAM, the bitflip flag resets to 0 for next RAM check
+        if (bitflipFound == 1){
+            bitflipFound = 0;
+        }
         //  detectBitFlips(lfsr);
-         memoryAllocation();
+          
+        memoryAllocation();
+        // after checking heap, the bitflip flag resets to 0 for next RAM check
+        if (bitflipFound == 1){
+            bitflipFound = 0;
+        }
 
           //checkStackIntegrity();  // Check for stack corruption
           //checkFlashIntegrity();  // Check flash memory integrity
@@ -287,6 +319,6 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
 
        //  blinkPattern();  // Handle any detected errors with LED patterns
           P1OUT ^= BIT2;
-         // __delay_cycles(500000);  // Small delay between iterations
+         __delay_cycles(500000);  // Small delay between iterations
       }
   }
