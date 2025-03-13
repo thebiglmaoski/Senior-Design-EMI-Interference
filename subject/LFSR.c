@@ -77,7 +77,8 @@ void memoryAllocation(){
 
     unsigned char* memoryBuffer = (unsigned char*) calloc(allocatedSize, sizeof(unsigned char));
     int i = 0;
- 
+    bitflipFound = 0;
+    
     if (memoryBuffer == NULL) {
         return;
     }
@@ -263,9 +264,9 @@ uint32_t computeCRC(uint32_t* start, uint32_t* end) {
 
 
       // Initialize RAM sectors 0, 1, and 7 to be 0
-     //zeroOutRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
-     // zeroOutRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
-      //zeroOutRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
+     zeroOutRAM((uint16_t*)startAddress0, (uint16_t*)endAddress0);
+     zeroOutRAM((uint16_t*)startAddress1, (uint16_t*)endAddress1);
+      zeroOutRAM((uint16_t*)startAddress7, (uint16_t*)endAddress7);
 
      // *(volatile uint32_t*)STACK_CANARY_ADDR = 0xDEADBEEF;
 
