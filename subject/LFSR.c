@@ -121,49 +121,176 @@ If needed, we can expand resetCheck() to check for other specific events besides
 */
 void resetCheck(){
 
-    /*this accounts for the edge case where the register value is 0x00 (no reset), we want the errorFlag to be 0 here.
-    otherwise, it would fall under the else condition and set errorFlag to 2.
-    */
-
-    if (SYSRSTIV == 0x00) {
-        errorFlag = 0;
-    }
-
-   else if (SYSRSTIV == 0x02) { // Check for brownout reset
-        errorFlag = 1; // Set errorFlag to 1 to indicate a brownout error
-    }
-
-    else {
-        errorFlag = 2; // Set errorFlag to 2 to indicate other errors
+    
+    switch(SYSRSTIV){
+        // These register values are from page 96 of the MSP430x5xx and MSP430x6xx family user guide
+        case 0x00: errorFlag = 0; break; 
+        case 0x02: errorFlag = 1; break; // reset cause = brownout
+        case 0x04: errorFlag = 2; break; // reset cause = low signal on RST/NMI
+        case 0x06: errorFlag = 3; break; // reset cause = software brownout reset on PMM
+        case 0x08: errorFlag = 4; break; // reset cause = LPMx.5 wakeup
+        case 0x0A: errorFlag = 5; break; // reset cause = security violation
+        case 0x0C: errorFlag = 6; break; // reset cause = SVSL
+        case 0x0E: errorFlag = 7; break; // reset cause = SVSH
+        case 0x10: errorFlag = 8; break; // reset cause = SVSH
+        case 0x12: errorFlag = 9; break; // reset cause = SVML_OVP
+        case 0x14: errorFlag = 10; break; // reset cause = SVMH_OVP 
+        case 0x16: errorFlag = 11; break; // reset cause = software power-on reset on PMM
+        case 0x18: errorFlag = 12; break; // reset cause = WDT password violation
+        case 0x1A: errorFlag = 13; break; // reset cause = Flash password violation
+        case 0x1E: errorFlag = 14; break; // reset cause = PERF peripheral/configuration area fetch
+        case 0x20: errorFlag = 15; break; // reset cause = PMM password violation
+        default: break;
     }
 }
 
 /* created a separate function to help identify reason for reset. Feel free to change the pattern of blinks
-but currently, brownout will be 3 rapid blinks and other errors will be 1 long blink.
-
+errorFlags 1-5 will be short blinks, errorFlags will be 6-10 long blinks, errorFlags 11-15 will be short and long blinks
 */
+
+void shortBlink(){
+    P1OUT |= BIT0;
+    __delay_cycles(40000);
+    P1OUT &= ~BIT0;
+    __delay_cycles(200000);
+}
+
+void longBlink(){
+    P1OUT |= BIT0;
+    __delay_cycles(1200000);
+    P1OUT &= ~BIT0;
+    __delay_cycles(200000);
+}
+
+
 void blinkPattern(){
 
-    int i = 0;
-
     switch (errorFlag) {
-        // brownout should be 3 quick blinks
-        case 1:
-            for (i = 0; i < 2; ++i) {
-                P1OUT |= BIT0; // connect to pin 16 of subject
-                __delay_cycles(100000);
-                P1OUT &= ~BIT0;
-                __delay_cycles(100000);
+        
+        case 0:
+            break;
+        
+        case 1: // Brownout error
+            shortBlink();
+            break;
+        case 2: // RST/NMI error
+            for (i = 0; i < 2; i++) {
+                shortBlink();
+                if (i < 1) {
+                    __delay_cycles(400000);
+                }
             }
             break;
-        // other errors will be 1 long blink
-        case 2:
-            P1OUT |= BIT0;
-            __delay_cycles(600000);
-            P1OUT &= ~BIT0;
-            __delay_cycles(600000);
+        
+        case 3: // PMMSWBOR error
+            for (i = 0; i < 3; i++) {
+                shortBlink();
+                if (i < 2){
+                    __delay_cycles(400000);
+                }
+            }
             break;
-
+        
+        case 4: // Wakeup LPMx.5 error
+            for (i = 0; i < 4; i++) {
+                shortBlink();
+                if (i < 3) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 5: // Security violation error
+            for (i = 0; i < 5; i++) {
+                shortBlink();
+                if (i < 4) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 6: // SVSL error
+            longBlink();
+            break;
+        
+        case 7: // SVSH error
+            for (i = 0; i < 2; i++) {
+                longBlink();
+                if (i < 1){
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 8: // SVML_OVP error
+            for (i = 0; i < 3; i++) {
+                longBlink();
+                if (i < 2) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 9: // SVMH_OVP error
+            for (i = 0; i < 4; i++) {
+                longBlink();
+                if (i < 3) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        case 10: // PMMSWPOR error
+            for (i = 0; i < 5; i++) {
+                longBlink();
+                if (i < 4) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 11: // WDT timeout error
+            shortBlink();
+            longBlink();
+            break;
+        
+        case 12: // WDT password error
+            for (i = 0; i < 2; i++) {
+                shortBlink();
+                longBlink();
+                if (i < 1) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 13: // Flash password error
+            for (i = 0; i < 3; i++) {
+                shortBlink();
+                longBlink();
+                if (i < 2) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        case 14: // PLL unlock error
+            for (i = 0; i < 4; i++) {
+                shortBlink();
+                longBlink();
+                if (i < 3) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
+        
+        case 15: // PERF violation error
+            for (i = 0; i < 5; i++) {
+                shortBlink();
+                longBlink();
+                if (i < 4) {
+                    __delay_cycles(400000);
+                }
+            }
+            break;
         default:
             P1OUT &= ~BIT0;
             break;
